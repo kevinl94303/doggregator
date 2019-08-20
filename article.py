@@ -9,3 +9,6 @@ class Article:
         self.image = image
         self.location = location
         self.keywords = keywords
+    
+    def __lt__(self, other):
+        return self.datetime < other.datetime
