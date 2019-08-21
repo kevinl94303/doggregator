@@ -69,6 +69,27 @@ class DB_Connector:
 
         self.mycursor.execute(sql)
         self.cnx.commit()
+    
+    def fetch_same_location(self, article: Article):
+        date1 = article.datetime.date()
+        date2 = article.datetime.date() - datetime.timedelta(days=1)
+        table1_string = "stories-{}-{}-{}".format(date1.year, date1.month, date1.day)
+        table2_string = "stories-{}-{}-{}".format(date2.year, date2.month, date2.day)
+
+        sql = "SELECT * FROM `doggregator`.`{table1}` t1 \
+        WHERE t1.location = '{location}' OR t1.location = '' \
+        UNION SELECT * FROM `doggregator`.`{table2}` t2 \
+        WHERE t2.location = '{location}' OR t2.location = '';".format(
+            table1 = table1_string,
+            table2 = table2_string,
+            location = article.location,
+        )
+
+        self.mycursor.execute(sql)
+        myresult = self.mycursor.fetchall()
+
+        return myresult
+
 
                     
 if __name__ == "__main__":

@@ -10,21 +10,70 @@ from keywords import KeywordExtractor
 from article import Article
 from mysql_api import DB_Connector
 
+class OutletCrawler:
+    def __init__(self):
+        self.name = ""
+        self.url = ""
+        self.re_story = ""
+        self.re_topic = ""
+    
+    def init_keyword_extractor(self):
+        self.keyword_extractor = KeywordExtractor()
+
+    def get_title(self, soup: BeautifulSoup):
+        titleEl = soup.select_one('meta[property="og:title"]')
+        title = titleEl['content'] if titleEl else ""
+        self.title = title
+        return title
+    
+    def get_img(self, soup: BeautifulSoup):
+        imgEl = soup.select_one('meta[property="og:image"]')
+        img= imgEl['content'] if imgEl else ""
+        return img
+    
+    def get_datetime(self, soup: BeautifulSoup):
+        datetimeEl = soup.select_one('meta[itemprop*="datePublished"]')
+        datetime = dateutil.parser.parse(datetimeEl['content']) if datetimeEl else ""
+        return datetime
+    
+    def get_lede(self, soup: BeautifulSoup):
+        articleBodyEl = soup.select_one('section[itemprop*="articleBody"]')
+        if articleBodyEl:
+            ledeEl = articleBodyEl.find("p")
+            lede = ledeEl.text if ledeEl else ""
+        else:
+            lede = ""
+        
+        self.lede = lede
+        
+        return lede
+
+    def extract_keywords(self, soup: BeautifulSoup):
+        self.init_keyword_extractor()
+        keywords, location = self.keyword_extractor(self.title, self.lede)
+        if not location:
+            location = ""
+        
+        return keywords, location
+
+
+
 class Crawler:
 
-    def __init__(self, outlet: str, url: str, re_story: Pattern, re_topic: Pattern):
-        self.outlet = outlet
-        self.root_url = url
-        self.re_story = re_story
-        self.re_topic = re_topic
+    def __init__(self, outlet_crawler: OutletCrawler):
+        self.outlet_crawler = outlet_crawler
+        self.outlet = outlet_crawler.name
+        self.root_url = outlet_crawler.url
+        self.re_story = re.compile(outlet_crawler.re_story)
+        self.re_topic = re.compile(outlet_crawler.re_topic)
         self.seen_urls = set([])
         self.dates = []
         self.stories = [] # (url, date, title, keywords[])
-        self.keyword_extractor = KeywordExtractor()
         self.conn = DB_Connector("root", os.environ['DOGGREGATOR_PW'], "doggregator.c0k9vwwy6vyu.us-west-1.rds.amazonaws.com", "doggregator")
     
     def __call__(self, depth: int = 2):
         self.crawl(self.root_url, depth)
+        self.update_db()
     
     def update_db(self):
         for date in self.dates:
@@ -48,26 +97,11 @@ class Crawler:
         
         soup = BeautifulSoup(res.text, 'html.parser')
 
-        titleEl = soup.select_one('meta[property="og:title"]')
-        title = titleEl['content'] if titleEl else ""
-
-        imgEl = soup.select_one('meta[property="og:image"]')
-        img= imgEl['content'] if imgEl else ""
-
-
-        datetimeEl = soup.select_one('meta[itemprop*="datePublished"]')
-        datetime = dateutil.parser.parse(datetimeEl['content']) if datetimeEl else ""
-
-        articleBodyEl = soup.select_one('section[itemprop*="articleBody"]')
-        if articleBodyEl:
-            ledeEl = articleBodyEl.find("p")
-            lede = ledeEl.text if ledeEl else ""
-        else:
-            lede = ""
-
-        keywords, location = self.keyword_extractor(title, lede)
-        if not location:
-            location = ""
+        title = self.outlet_crawler.get_title(soup)
+        img = self.outlet_crawler.get_img(soup)
+        datetime = self.outlet_crawler.get_datetime(soup)
+        lede = self.outlet_crawler.get_lede(soup)
+        keywords, location = self.outlet_crawler.extract_keywords(soup)
         
         if datetime.date() not in self.dates:
             self.dates.append(datetime.date())
@@ -107,13 +141,3 @@ class Crawler:
             if match:
                 self.crawl(self.root_url + match.group(0), depth - 1)
                 continue
-
-        self.update_db()
-
-
-
-if __name__ == "__main__":
-    nyt_re_story = re.compile(r"((?:/interactive)?/[0-9]{4}/[0-9]{2}/[0-9]{2}/[a-z]*/.*)(#.*)?")
-    nyt_re_topic = re.compile(r"/section/.*")
-    NYTCrawler = Crawler("The New York Times", "http://www.nytimes.com", nyt_re_story, nyt_re_topic)
-    NYTCrawler(1)
