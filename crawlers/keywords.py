@@ -9,7 +9,8 @@ class KeywordExtractor:
     def __init__(self):
         self.nlp = spacy.load("en_core_web_sm")
         self.stopwords = set(stopwords.words('english'))
-        self.punct = set(string.punctuation)
+        self.punct = set(string.punctuation + '’')
+        self.translator = str.maketrans('', '', string.punctuation)
 
     def __call__(self, title: str, graf: str):
         return self.extract_keywords(title, graf)
@@ -18,7 +19,7 @@ class KeywordExtractor:
         new_phrase = []
         for word in phrase.split():
             if word not in self.stopwords | self.punct:
-                word.replace('\'', '\\\'')
+                word = word.translate(self.translator)
                 new_phrase.append(word)
         
         if not new_phrase:

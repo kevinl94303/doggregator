@@ -4,8 +4,8 @@ class NYTCrawler(OutletCrawler):
     def __init__(self):
         self.name = "The New York Times"
         self.url = "http://www.nytimes.com"
-        self.re_story = r"((?:/interactive)?/[0-9]{4}/[0-9]{2}/[0-9]{2}/[a-z]*/.*\.html)"
-        self.re_topic = r"/section/.*"
+        self.re_story = r".com((?:/interactive)?/[0-9]{4}/[0-9]{2}/[0-9]{2}/[a-z]*/.*\.html)"
+        self.re_topic = r".com(/section/.*)"
 
 
 if __name__ == "__main__":

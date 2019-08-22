@@ -36,13 +36,13 @@ class DB_Connector:
 
         if(myresult[0][0] == 0):
             sql = "CREATE TABLE `doggregator`.`{}` ( \
-                `link` VARCHAR(250) NOT NULL, \
-                `location` VARCHAR(45) NOT NULL, \
+                `link` VARCHAR(512) NOT NULL, \
+                `location` VARCHAR(512) NOT NULL, \
                 `time` DATETIME NOT NULL, \
-                `outlet` VARCHAR(45) NOT NULL, \
-                `title` VARCHAR(100) NOT NULL, \
-                `keywords` TEXT(1000) NOT NULL, \
-                `image` VARCHAR(250) NOT NULL, \
+                `outlet` VARCHAR(512) NOT NULL, \
+                `title` VARCHAR(512) NOT NULL, \
+                `keywords` TEXT(1024) NOT NULL, \
+                `image` VARCHAR(512) NOT NULL, \
                 PRIMARY KEY (`link`), \
                 INDEX `LOCATION` (`location` ASC) VISIBLE);".format(table_string)
 

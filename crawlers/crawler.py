@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 from typing import Pattern
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import dateutil.parser
 import os
 
@@ -33,7 +33,7 @@ class OutletCrawler:
     
     def get_datetime(self, soup: BeautifulSoup):
         datetimeEl = soup.select_one('meta[itemprop*="datePublished"]')
-        datetime = dateutil.parser.parse(datetimeEl['content']) if datetimeEl else ""
+        datetime = dateutil.parser.parse(datetimeEl['content']) if datetimeEl else None
         return datetime
     
     def get_lede(self, soup: BeautifulSoup):
@@ -99,17 +99,31 @@ class Crawler:
 
         title = self.outlet_crawler.get_title(soup)
         img = self.outlet_crawler.get_img(soup)
-        datetime = self.outlet_crawler.get_datetime(soup)
+        published_date = self.outlet_crawler.get_datetime(soup)
         lede = self.outlet_crawler.get_lede(soup)
         keywords, location = self.outlet_crawler.extract_keywords(soup)
+
+        if not published_date:
+            print("Failed to parse datetime: {}".format(url))
+            return
         
-        if datetime.date() not in self.dates:
-            self.dates.append(datetime.date())
+        # Only keep articles from previous 5 days
+        if published_date - datetime.now(timezone.utc) > timedelta(days = 5):
+            return
+        
+        if published_date.date() not in self.dates:
+            self.dates.append(published_date.date())
         
         title = title.replace('\'', '\\\'')
 
-        article = Article(datetime, url, self.outlet, title, img, location, keywords)
+        article = Article(published_date, url, self.outlet, title, img, location, keywords)
         self.stories.append(article)
+
+        if len(self.stories) > 20:
+            self.update_db()
+            self.stories = []
+
+        print(published_date, url, self.outlet, title, img, location, keywords)
 
         return article
 
@@ -139,5 +153,5 @@ class Crawler:
 
             match = self.re_topic.search(href)
             if match:
-                self.crawl(self.root_url + match.group(0), depth - 1)
+                self.crawl(self.root_url + match.group(1), depth - 1)
                 continue
